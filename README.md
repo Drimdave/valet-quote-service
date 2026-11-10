@@ -29,7 +29,7 @@ customer -> Agentplace agent (conversation, UI) -> MCP tool call -> /api/mcp -> 
 
 ## Tested
 
-A full QA pass and its findings are in [QA_REPORT.md](QA_REPORT.md): nine bugs found and fixed, and a list of what was not tested.
+A full QA pass and its findings are in [QA_REPORT.md](QA_REPORT.md): ten bugs found and fixed, and a list of what was not tested.
 
 `npm test` runs 31 tests: every base price, extras, per-light pricing, flat-price vs "from" flags, error codes for each bad input, the guideline notes being present, and the MCP tools through an in-memory client (listing, a successful call, a structured error, schema rejection of an unknown extra). `npm run typecheck` is clean. CI runs both on every push. I also called the REST and MCP endpoints over real HTTP, locally and on the live deployment.
 
