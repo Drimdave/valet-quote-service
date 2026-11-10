@@ -12,7 +12,7 @@ Scope: the REST and MCP endpoints and the demo page, first run locally (Node 22,
 ## Bugs found and fixed
 | # | Severity | Found by | Bug | Fix |
 |---|---|---|---|---|
-| 1 | High (local server) | Abuse test | Malformed JSON killed the dev server process (exit code 1); every later request failed. | 400 `invalid_json`; handler wrapped so an exception returns 500 instead of crashing. Vercel rejects bad JSON before the handler, so production was never affected, but that path is untested until deployed. |
+| 1 | High (local server) | Abuse test | Malformed JSON killed the dev server process (exit code 1); every later request failed. | 400 `invalid_json`; handler wrapped so an exception returns 500 instead of crashing. This turned out not to cover production: see bug 10. |
 | 2 | Medium | Exploratory | "Get quote (REST)" on the page threw "Response body is already used" (the body was read twice). The MCP button worked, which hid it. | Parse once. |
 | 3 | Medium | Mobile test | On a phone the result rendered 1,568 px below the button on an 812 px screen, so pressing the button looked like nothing happened. | Result scrolls into view (respects reduced motion). |
 | 4 | Low | Abuse test | A wrong size ("huge", "SMALL") said the vehicle "needs a size". | New `invalid_size` error, separate from `size_required`. |
@@ -21,7 +21,6 @@ Scope: the REST and MCP endpoints and the demo page, first run locally (Node 22,
 | 7 | Low | axe/tree read | Checkboxes had no accessible name (read as "on"). | `aria-label` from the service name. |
 | 8 | Low | Dark-mode screenshot | Source link used the default browser blue, hard to read on dark. | Link colour from the theme. |
 | 9 | Hardening | Abuse test | No cap on the number of extras. | `too_many_extras` above the number of real services. |
-
 | 10 | Medium | Live deployment | On Vercel, malformed JSON returned **500** on `/api/quote` and `/api/mcp`. Vercel parses `req.body` lazily and throws inside the handler, so my 'Vercel rejects it first' assumption (bug 1) was wrong. | The body is read inside a guard: 400 `invalid_json` on REST and a JSON-RPC -32700 parse error on MCP. Two handler tests simulate Vercel's throwing getter and fail without the fix. |
 
 Each fix in the service code has a regression test (31 tests now).
@@ -34,7 +33,7 @@ Latency: about 0.6 s per request from the test machine (Lagos). Roughly 1 in 20 
 ## Checked and fine
 - All 25 prices, the flat-versus-"from" labels and the per-light headlight price match the live page.
 - 200 parallel REST requests and 100 parallel MCP calls: all correct totals, no errors, server stayed up.
-- MCP: unknown method returns -32601; unknown tool and bad arguments return structured errors; GET returns 405; a missing Accept header returns 406; bad JSON returns 400.
+- MCP: unknown method returns -32601; unknown tool and bad arguments return structured errors; GET returns 405; a missing Accept header returns 406; bad JSON returns 400 (after the bug 10 fix, locally and live).
 - Prototype names (`__proto__`, `constructor`) are rejected as unknown extras.
 - Phone width: single column, no horizontal scroll. Keyboard: sensible tab order, visible focus ring, Space ticks a box, Enter runs a quote.
 - axe-core: 0 violations in light and dark. Every text and background pair I use is at least 5.5:1.
