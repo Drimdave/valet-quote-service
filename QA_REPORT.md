@@ -1,6 +1,6 @@
 # QA report: valet-quote-service (10 Nov 2026)
 
-Scope: the REST and MCP endpoints and the demo page, run locally (Node 22, Chromium). Not yet deployed.
+Scope: the REST and MCP endpoints and the demo page, first run locally (Node 22, Chromium), then against the live deployment at https://valet-quote-service.vercel.app.
 
 ## Method
 1. Verified every coded price against the live source page.
@@ -22,7 +22,14 @@ Scope: the REST and MCP endpoints and the demo page, run locally (Node 22, Chrom
 | 8 | Low | Dark-mode screenshot | Source link used the default browser blue, hard to read on dark. | Link colour from the theme. |
 | 9 | Hardening | Abuse test | No cap on the number of extras. | `too_many_extras` above the number of real services. |
 
-Each fix in the service code has a regression test (27 tests now).
+| 10 | Medium | Live deployment | On Vercel, malformed JSON returned **500** on `/api/quote` and `/api/mcp`. Vercel parses `req.body` lazily and throws inside the handler, so my 'Vercel rejects it first' assumption (bug 1) was wrong. | The body is read inside a guard: 400 `invalid_json` on REST and a JSON-RPC -32700 parse error on MCP. Two handler tests simulate Vercel's throwing getter and fail without the fix. |
+
+Each fix in the service code has a regression test (31 tests now).
+
+## Live deployment checks (after publishing)
+Same abuse and protocol tests as above, run against the live URL: every response matches the local run except bug 10. CORS header present, wrong methods return 405, MCP `initialize`, `tools/list` and `tools/call` work over the public internet, 60 parallel REST and 30 parallel MCP requests returned correct totals.
+
+Latency: about 0.6 s per request from the test machine (Lagos). Roughly 1 in 20 requests took about 30 s, but in every slow case the TCP connect took 30 s (DNS 4 ms, first byte 0.35 s after connecting), on one of Vercel's IP addresses from this network. The service's own time was normal, so I read it as a network-path problem on the test machine, not a cold start or slow code. I did not confirm that from a second network.
 
 ## Checked and fine
 - All 25 prices, the flat-versus-"from" labels and the per-light headlight price match the live page.
@@ -37,7 +44,7 @@ Each fix in the service code has a regression test (27 tests now).
 - The dev server accepts a 2 MB body; Vercel's own limit (4.5 MB) applies in production.
 
 ## Not tested
-- The Vercel deployment itself (cold starts, platform body parsing, CORS headers in production).
+- A second network path to the deployment (to confirm the 30 s connect stalls are local to the test machine).
 - A connection from a real MCP client (Agentplace) to this endpoint.
 - Firefox, Safari, real phones, a screen reader (only the accessibility tree and axe).
 - Load beyond what one laptop can send; any security testing beyond input abuse.

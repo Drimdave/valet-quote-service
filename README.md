@@ -2,6 +2,10 @@
 
 A small price-quote service for an **unofficial demo agent** built on Agentplace as part of a job application (Full-Stack Engineer test task). It is not affiliated with, or endorsed by, the business whose public price list it uses (JB Mobile Valeting, Cambridge). Nothing here sends data to that business.
 
+## Live
+
+Demo page and API: https://valet-quote-service.vercel.app (MCP endpoint: `/api/mcp`, no key needed).
+
 ## What it does
 
 The agent talks to the customer; this service does the arithmetic. Prices never come from the language model.
@@ -27,7 +31,7 @@ customer -> Agentplace agent (conversation, UI) -> MCP tool call -> /api/mcp -> 
 
 A full QA pass and its findings are in [QA_REPORT.md](QA_REPORT.md): nine bugs found and fixed, and a list of what was not tested.
 
-`npm test` runs 27 tests: every base price, extras, per-light pricing, flat-price vs "from" flags, error codes for each bad input, the guideline notes being present, and the MCP tools through an in-memory client (listing, a successful call, a structured error, schema rejection of an unknown extra). `npm run typecheck` is clean. CI runs both on every push. I also called the REST and MCP endpoints over real HTTP on a local server.
+`npm test` runs 31 tests: every base price, extras, per-light pricing, flat-price vs "from" flags, error codes for each bad input, the guideline notes being present, and the MCP tools through an in-memory client (listing, a successful call, a structured error, schema rejection of an unknown extra). `npm run typecheck` is clean. CI runs both on every push. I also called the REST and MCP endpoints over real HTTP, locally and on the live deployment.
 
 ## Not tested, and what I would change for production
 
