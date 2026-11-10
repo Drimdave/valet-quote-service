@@ -68,6 +68,25 @@ describe("validation", () => {
     expect(code(() => getQuote({ vehicle: { kind: "bike" as never } }))).toBe("invalid_vehicle");
     expect(code(() => getQuote(undefined as never))).toBe("invalid_vehicle");
   });
+  it("tells a missing size apart from a wrong size", () => {
+    expect(code(() => getQuote({ vehicle: { kind: "car", size: "huge" as never } }))).toBe("invalid_size");
+    expect(code(() => getQuote({ vehicle: { kind: "car", size: "SMALL" as never } }))).toBe("invalid_size");
+    expect(code(() => getQuote({ vehicle: { kind: "car", size: null as never } }))).toBe("size_required");
+  });
+  it("rejects extras that are not a list of {id} objects", () => {
+    expect(code(() => getQuote({ vehicle: { kind: "4x4" }, extras: "tar_removal" as never }))).toBe("invalid_extras");
+    expect(code(() => getQuote({ vehicle: { kind: "4x4" }, extras: ["tar_removal"] as never }))).toBe("invalid_extras");
+    expect(code(() => getQuote({ vehicle: { kind: "4x4" }, extras: [null] as never }))).toBe("invalid_extras");
+    expect(code(() => getQuote({ vehicle: { kind: "4x4" }, extras: [{ id: 5 }] as never }))).toBe("invalid_extras");
+  });
+  it("caps the number of extras", () => {
+    const many = Array.from({ length: 50 }, () => ({ id: "tar_removal" }));
+    expect(code(() => getQuote({ vehicle: { kind: "4x4" }, extras: many }))).toBe("too_many_extras");
+  });
+  it("does not treat prototype names as extras", () => {
+    expect(code(() => getQuote({ vehicle: { kind: "4x4" }, extras: [{ id: "__proto__" }] }))).toBe("unknown_extra");
+    expect(code(() => getQuote({ vehicle: { kind: "4x4" }, extras: [{ id: "constructor" }] }))).toBe("unknown_extra");
+  });
   it("rejects unknown and duplicate extras", () => {
     expect(code(() => getQuote({ vehicle: { kind: "4x4" }, extras: [{ id: "gold_plating" }] }))).toBe("unknown_extra");
     expect(code(() => getQuote({ vehicle: { kind: "4x4" }, extras: [{ id: "tar_removal" }, { id: "tar_removal" }] }))).toBe("duplicate_extra");

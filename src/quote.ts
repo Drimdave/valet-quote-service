@@ -55,8 +55,11 @@ function baseLine(vehicle: QuoteInput["vehicle"]): LineItem {
   if (vehicle.kind === "4x4") {
     return { id: "standard_valet_4x4", label: "Standard valet, interior and exterior, 4x4", unitFromPence: FOUR_BY_FOUR_FROM_PENCE, quantity: 1, totalFromPence: FOUR_BY_FOUR_FROM_PENCE, isFrom: true };
   }
-  if (!vehicle.size || !SIZES.includes(vehicle.size)) {
+  if (vehicle.size === undefined || vehicle.size === null) {
     throw new QuoteError(`A ${vehicle.kind} needs a size: one of ${SIZES.join(", ")}.`, "size_required");
+  }
+  if (!SIZES.includes(vehicle.size)) {
+    throw new QuoteError(`Unknown size "${String(vehicle.size)}". Use one of: ${SIZES.join(", ")} (lower case).`, "invalid_size");
   }
   if (vehicle.kind === "van") {
     const p = VAN_FROM_PENCE[vehicle.size];
@@ -72,7 +75,17 @@ export function getQuote(input: QuoteInput): Quote {
   }
   const lines: LineItem[] = [baseLine(input.vehicle)];
   const seen = new Set<string>();
-  for (const e of input.extras ?? []) {
+  const extrasIn: unknown = input.extras ?? [];
+  if (!Array.isArray(extrasIn)) {
+    throw new QuoteError('"extras" must be a list of objects like {"id": "tar_removal"}.', "invalid_extras");
+  }
+  if (extrasIn.length > EXTRAS.length) {
+    throw new QuoteError(`Too many extras (${extrasIn.length}); there are only ${EXTRAS.length} services.`, "too_many_extras");
+  }
+  for (const e of extrasIn as { id: string; quantity?: number }[]) {
+    if (e === null || typeof e !== "object" || typeof e.id !== "string") {
+      throw new QuoteError('Each extra must be an object with a text "id", like {"id": "tar_removal"}.', "invalid_extras");
+    }
     const extra = EXTRAS.find((x) => x.id === e.id);
     if (!extra) {
       throw new QuoteError(`Unknown extra "${e.id}". Known extras: ${EXTRAS.map((x) => x.id).join(", ")}.`, "unknown_extra");

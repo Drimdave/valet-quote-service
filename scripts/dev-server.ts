@@ -19,8 +19,18 @@ createServer(async (req, res) => {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
   const raw = Buffer.concat(chunks).toString();
-  (req as any).body = raw ? JSON.parse(raw) : undefined;
   (res as any).status = (code: number) => { res.statusCode = code; return res; };
   (res as any).json = (obj: unknown) => { res.setHeader("content-type", "application/json"); res.end(JSON.stringify(obj)); return res; };
-  await handler(req, res);
+  try {
+    (req as any).body = raw ? JSON.parse(raw) : undefined;
+  } catch {
+    // Vercel answers malformed JSON with a 400 before the handler runs; do the same here instead of crashing.
+    (res as any).status(400).json({ error: "invalid_json", message: "The request body is not valid JSON." });
+    return;
+  }
+  try {
+    await handler(req, res);
+  } catch {
+    if (!res.headersSent) (res as any).status(500).json({ error: "internal_error", message: "Something went wrong." });
+  }
 }).listen(3000, () => console.log("http://localhost:3000  (POST /api/quote, GET /api/services, POST /api/mcp)"));

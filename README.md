@@ -25,7 +25,9 @@ customer -> Agentplace agent (conversation, UI) -> MCP tool call -> /api/mcp -> 
 
 ## Tested
 
-`npm test` runs 23 tests: every base price, extras, per-light pricing, flat-price vs "from" flags, error codes for each bad input, the guideline notes being present, and the MCP tools through an in-memory client (listing, a successful call, a structured error, schema rejection of an unknown extra). `npm run typecheck` is clean. CI runs both on every push. I also called the REST and MCP endpoints over real HTTP on a local server.
+A full QA pass and its findings are in [QA_REPORT.md](QA_REPORT.md): nine bugs found and fixed, and a list of what was not tested.
+
+`npm test` runs 27 tests: every base price, extras, per-light pricing, flat-price vs "from" flags, error codes for each bad input, the guideline notes being present, and the MCP tools through an in-memory client (listing, a successful call, a structured error, schema rejection of an unknown extra). `npm run typecheck` is clean. CI runs both on every push. I also called the REST and MCP endpoints over real HTTP on a local server.
 
 ## Not tested, and what I would change for production
 

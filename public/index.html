@@ -130,6 +130,8 @@ function show(q, raw){
       + `<p class="sub" style="font-size:13px">Source: <a href="${esc(q.source)}" target="_blank" rel="noreferrer">the business's public price page</a>, copied ${esc(q.priceListDate)}.</p>`;
   }
   $('raw').textContent = JSON.stringify(raw, null, 2); $('rawwrap').hidden = false;
+  // On a phone the result sits below the long extras list; bring it into view so the button visibly does something.
+  $('h-out').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
 }
 
 async function rest(){
