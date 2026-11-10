@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Valet quote demo</title>
+<style>
+:root{--bg:#fbfbfa;--card:#fff;--fg:#1c1d20;--mut:#62666d;--line:#e2e3e6;--acc:#0b57d0;--accfg:#fff;--ok:#0a7a3c;--warn:#8a5a00;--warnbg:#fff6e0}
+@media(prefers-color-scheme:dark){:root{--bg:#141518;--card:#1c1d21;--fg:#ececf0;--mut:#9a9ca5;--line:#2d2f35;--acc:#8ab4f8;--accfg:#10141c;--ok:#6fd49a;--warn:#f2c46b;--warnbg:#2a2210}}
+*{box-sizing:border-box}
+a{color:var(--acc)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:920px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:21px;margin:0 0 4px}
+h2{font-size:16px;margin:0 0 10px}
+.sub{color:var(--mut);margin:0 0 14px}
+.banner{background:var(--warnbg);color:var(--warn);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 18px;font-size:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+label{display:block;font-weight:600;margin:12px 0 4px;font-size:13px}
+select,input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+.extra{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}
+.extra:last-child{border-bottom:0}
+.extra .p{margin-left:auto;color:var(--mut);white-space:nowrap}
+.extra input[type=number]{width:56px;padding:3px 6px}
+.group{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:14px 0 2px}
+button{background:var(--acc);color:var(--accfg);border:0;border-radius:8px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--acc);border:1px solid var(--line)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td{padding:7px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n{text-align:right;white-space:nowrap}
+.total{font-size:22px;font-weight:700;margin:12px 0 4px}
+.err{color:#b3261e;font-weight:600}
+@media(prefers-color-scheme:dark){.err{color:#f2b8b5}}
+ul.notes{color:var(--mut);padding-left:18px;margin:8px 0}
+details{margin-top:12px}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:12px;max-height:260px}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:1px 8px;font-size:12px;color:var(--mut);margin-left:6px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Valet quote demo</h1>
+  <p class="sub">The price engine behind an Agentplace demo agent. The agent talks; this service does the arithmetic.</p>
+  <div class="banner"><strong>Unofficial demo.</strong> Built for a job application. Not affiliated with or endorsed by JB Mobile Valeting, Cambridge. Prices come from the business's public price list (<span id="pldate">…</span>) and are guidelines. Nothing here is sent to the business and nothing can be booked.</div>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="h-in">
+      <h2 id="h-in">1. Describe the vehicle</h2>
+      <label for="kind">Vehicle</label>
+      <select id="kind"><option value="car">Car</option><option value="van">Van</option><option value="4x4">4x4</option></select>
+      <label for="size">Size</label>
+      <select id="size">
+        <option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option><option value="extra_large">Extra large</option>
+      </select>
+      <div id="sizehelp" class="sub" style="margin:4px 0 0;font-size:13px"></div>
+      <h2 style="margin-top:18px">2. Add extras <span class="pill">after a standard valet</span></h2>
+      <div id="extras" aria-live="polite">Loading price list…</div>
+      <div class="row">
+        <button id="go" type="button">Get quote (REST)</button>
+        <button id="gomcp" type="button" class="ghost">Get quote via MCP tool</button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-out">
+      <h2 id="h-out">3. The quote</h2>
+      <div id="out" aria-live="polite"><p class="sub">Pick a vehicle and press <em>Get quote</em>.</p></div>
+      <details id="rawwrap" hidden><summary>Raw response</summary><pre id="raw"></pre></details>
+      <details>
+        <summary>What the agent can call (MCP tools)</summary>
+        <div class="row"><button id="tools" type="button" class="ghost">List MCP tools</button></div>
+        <pre id="toolsout" hidden></pre>
+      </details>
+    </section>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const gbp = (p) => '£' + (p % 100 === 0 ? p / 100 : (p / 100).toFixed(2));
+let services = null;
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+async function loadServices(){
+  services = await (await fetch('/api/services')).json();
+  $('pldate').textContent = services.priceListDate;
+  const groups = {exterior:'Exterior', interior:'Interior', protection:'Last-stage protection (full valet first)'};
+  let html = '';
+  for (const g of Object.keys(groups)) {
+    html += `<div class="group">${groups[g]}</div>`;
+    for (const e of services.extras.filter(x => x.group === g)) {
+      html += `<label class="extra" style="font-weight:400;margin:0"><input type="checkbox" data-id="${e.id}" aria-label="${esc(e.label)}"> <span>${esc(e.label)}</span>`
+        + (e.perUnit ? ` <input type="number" min="1" max="4" value="1" data-qty="${e.id}" aria-label="Number of lights">` : '')
+        + `<span class="p">${e.isFrom ? 'from ' : ''}${gbp(e.pence)}${e.perUnit ? ' each' : ''}</span></label>`;
+    }
+  }
+  $('extras').innerHTML = html;
+  syncSize();
+}
+
+function syncSize(){
+  const k = $('kind').value;
+  $('size').disabled = (k === '4x4');
+  const sv = services.standardValet;
+  $('sizehelp').textContent = k === '4x4'
+    ? 'All 4x4s start from ' + gbp(sv.fourByFourFromPence) + '.'
+    : k === 'car' ? 'e.g. ' + sv.cars[$('size').value].examples + ' (from ' + gbp(sv.cars[$('size').value].fromPence) + ')'
+                  : 'Cabin and exterior, from ' + gbp(sv.vans[$('size').value].fromPence);
+}
+
+function payload(){
+  const kind = $('kind').value;
+  const extras = [...document.querySelectorAll('#extras input[type=checkbox]:checked')].map(c => {
+    const id = c.dataset.id; const q = document.querySelector(`[data-qty="${id}"]`);
+    return q ? {id, quantity: Number(q.value)} : {id};
+  });
+  return {kind, size: kind === '4x4' ? undefined : $('size').value, extras};
+}
+
+function show(q, raw){
+  if (q.error) { $('out').innerHTML = `<p class="err">${esc(q.error)}</p><p>${esc(q.message)}</p>`; }
+  else {
+    $('out').innerHTML = '<table>' + q.lineItems.map(l =>
+      `<tr><td>${esc(l.label)}${l.quantity > 1 ? ' × ' + l.quantity : ''}</td><td class="n">${l.isFrom ? 'from ' : ''}${gbp(l.totalFromPence)}</td></tr>`).join('') + '</table>'
+      + `<div class="total">${esc(q.estimateFromFormatted)}</div>`
+      + `<ul class="notes">${q.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>`
+      + `<p class="sub" style="font-size:13px">Source: <a href="${esc(q.source)}" target="_blank" rel="noreferrer">the business's public price page</a>, copied ${esc(q.priceListDate)}.</p>`;
+  }
+  $('raw').textContent = JSON.stringify(raw, null, 2); $('rawwrap').hidden = false;
+}
+
+async function rest(){
+  const p = payload();
+  const r = await fetch('/api/quote', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({vehicle:{kind:p.kind,size:p.size}, extras:p.extras})});
+  const body = await r.json();
+  show(body, body);
+}
+
+async function mcpCall(method, params){
+  const r = await fetch('/api/mcp', {method:'POST', headers:{'content-type':'application/json', accept:'application/json, text/event-stream'}, body: JSON.stringify({jsonrpc:'2.0', id:1, method, params})});
+  const t = await r.text();
+  const line = t.includes('data: ') ? t.split('data: ')[1].split('\n')[0] : t;
+  return JSON.parse(line);
+}
+
+async function viaMcp(){
+  const res = await mcpCall('tools/call', {name:'get_price_quote', arguments: payload()});
+  if (res.error) { show({error:'mcp_error', message: res.error.message}, res); return; }
+  const body = res.result.content[0].text;
+  show(JSON.parse(body), res);
+}
+
+async function listTools(){
+  const res = await mcpCall('tools/list', {});
+  $('toolsout').hidden = false;
+  $('toolsout').textContent = res.result.tools.map(t => `${t.name}\n  ${t.description}\n`).join('\n');
+}
+
+$('kind').addEventListener('change', syncSize);
+$('size').addEventListener('change', syncSize);
+$('go').addEventListener('click', () => rest().catch(e => show({error:'request_failed', message:String(e)}, {})));
+$('gomcp').addEventListener('click', () => viaMcp().catch(e => show({error:'request_failed', message:String(e)}, {})));
+$('tools').addEventListener('click', () => listTools().catch(e => { $('toolsout').hidden = false; $('toolsout').textContent = String(e); }));
+loadServices().catch(e => { $('extras').textContent = 'Could not load the price list: ' + e; });
+</script>
+</body>
+</html>
